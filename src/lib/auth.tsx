@@ -14,38 +14,47 @@ type AuthCtx = {
 const Ctx = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AdminUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cachedUser = typeof window !== "undefined" ? Auth.getUser() : null;
+  const [user, setUser] = useState<AdminUser | null>(cachedUser);
+  // If we already have a cached user, do NOT show a loading state — render
+  // the app immediately and refresh /me in the background. This prevents the
+  // dashboard from "freezing" on Vercel/Render when the API is slow or cold.
+  const [loading, setLoading] = useState(
+    !cachedUser && typeof window !== "undefined" && !!Auth.getToken(),
+  );
 
   useEffect(() => {
-    // Only run auth check on client-side
     if (typeof window === "undefined") return;
 
     let alive = true;
-    const cached = Auth.getUser();
     const token = Auth.getToken();
-    if (cached) {
-      setUser(cached);
+    if (!token) {
       setLoading(false);
-    }
-    
-    if (token) {
-      AuthAPI.me()
-        .then((u) => {
-          if (!alive) return;
-          if (u) setUser(u);
-          else if (!cached) { Auth.clear(); setUser(null); }
-        })
-        .catch(() => {
-          if (!alive || cached) return;
-          Auth.clear(); setUser(null);
-        })
-        .finally(() => { if (alive) setLoading(false); });
-    } else {
-      setLoading(false);
+      return;
     }
 
-    return () => { alive = false; };
+    // Hard timeout: loading must never stay true forever, even if /me hangs.
+    const safety = setTimeout(() => { if (alive) setLoading(false); }, 6000);
+
+    AuthAPI.me()
+      .then((u) => {
+        if (!alive) return;
+        if (u) setUser(u);
+        else if (!cachedUser) { Auth.clear(); setUser(null); }
+      })
+      .catch(() => {
+        // Network/CORS/timeout: keep cached user if any; otherwise clear.
+        if (!alive) return;
+        if (!cachedUser) { Auth.clear(); setUser(null); }
+      })
+      .finally(() => {
+        if (!alive) return;
+        clearTimeout(safety);
+        setLoading(false);
+      });
+
+    return () => { alive = false; clearTimeout(safety); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Roles can come as `role: "admin"`, `roles: ["admin"]`, or `roles: [{name:"admin"}]`.
