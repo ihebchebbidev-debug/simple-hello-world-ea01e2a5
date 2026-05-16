@@ -10,6 +10,7 @@ const ACCESS_KEY = "@ecobus-admin/access";
 const REFRESH_KEY = "@ecobus-admin/refresh";
 const USER_KEY = "@ecobus-admin/user";
 const REQUEST_TIMEOUT_MS = 15_000;
+const AUTH_TIMEOUT_MS = 7_000;
 
 const ls = {
   get: (k: string) => (typeof window === "undefined" ? null : window.localStorage.getItem(k)),
@@ -98,7 +99,8 @@ export async function http<T = any>(path: string, opts: HttpOpts = {}): Promise<
   }
   let res: Response;
   const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutMs = path.startsWith("/auth/") ? AUTH_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
   try {
     res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: controller.signal });
   } catch (e) {
