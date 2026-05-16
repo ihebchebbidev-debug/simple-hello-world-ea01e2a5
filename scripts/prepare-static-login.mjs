@@ -1,13 +1,4 @@
-import { mkdirSync, copyFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
-
-const dist = join(process.cwd(), "dist");
-const source = join(dist, "login.html");
-const targetDir = join(dist, "login");
-const target = join(targetDir, "index.html");
-
-if (existsSync(source)) {
-  mkdirSync(targetDir, { recursive: true });
-  copyFileSync(source, target);
-  console.log("Prepared standalone /login page for static hosts.");
-}
+// No-op: the static /login.html detour was removed. The SPA now owns /login
+// on every host (Vercel, Render, Cloudflare, local). This file is kept so
+// existing `vercel-build` / `render-build` scripts don't fail.
+console.log("prepare-static-login: skipped (SPA login is now used everywhere).");
