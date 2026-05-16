@@ -85,7 +85,15 @@ const tryAttachRedisAdapter = async (server) => {
 
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
-    cors: { origin: env.corsOrigin, credentials: true },
+    // Allow every frontend origin (Vercel, Render, VPS, Lovable preview, etc.).
+    // With credentials enabled, Socket.IO must reflect the request origin instead
+    // of using "*", otherwise browsers reject the connection in production.
+    cors: {
+      origin: (_origin, cb) => cb(null, true),
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Request-Id'],
+    },
     // Tuned for many idle parent sockets: cheaper keepalive, larger window.
     pingInterval: 25_000,
     pingTimeout: 60_000,
