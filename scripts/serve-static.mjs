@@ -39,14 +39,11 @@ function send(res, file, status = 200) {
 createServer((req, res) => {
   const requested = safePath(req.url || "/");
 
-  if (requested === "/login" || requested === "/login/" || requested === "/login.html") {
-    return send(res, join(root, "login.html"));
-  }
-
   let file = join(root, requested);
   if (existsSync(file) && statSync(file).isDirectory()) file = join(file, "index.html");
   if (existsSync(file) && statSync(file).isFile()) return send(res, file);
 
+  // SPA fallback — all unknown routes go to the React app.
   return send(res, join(root, "index.html"));
 }).listen(port, "0.0.0.0", () => {
   console.log(`EcoBus static server listening on ${port}`);

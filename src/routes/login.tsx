@@ -24,11 +24,6 @@ function LoginPage() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
 
-  if (import.meta.env.VITE_STATIC_SELF_HOST === "true" && typeof window !== "undefined") {
-    window.location.replace("/login.html");
-    return null;
-  }
-
   if (!loading && isAuthenticated) return <Navigate to="/dashboard" />;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
