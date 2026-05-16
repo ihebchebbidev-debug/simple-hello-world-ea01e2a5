@@ -13,6 +13,14 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/organizations")({ component: OrganizationsPage });
 
+// Backend stores: name, contact_email, phone, address, subscription_plan, subscription_status.
+// We expose only those fields so the create/edit form actually persists what the user types.
+const PLAN_OPTIONS = [
+  { value: "starter", label: "Starter" },
+  { value: "pro", label: "Pro" },
+  { value: "enterprise", label: "Enterprise" },
+];
+
 function OrganizationsPage() {
   const { isSuperAdmin } = useAuth();
   const qc = useQueryClient();
@@ -25,11 +33,20 @@ function OrganizationsPage() {
 
   const fields = [
     { name: "name", label: "Nom", required: true, placeholder: "Ex. École Primaire des Oliviers" },
-    { name: "slug", label: "Identifiant (slug)", placeholder: "ex-oliviers" },
-    { name: "country", label: "Pays", placeholder: "TN" },
-    { name: "city", label: "Ville" },
-    { name: "address", label: "Adresse" },
+    { name: "contactEmail", label: "Email de contact", type: "email", placeholder: "contact@ecole.tn" },
+    { name: "phone", label: "Téléphone", placeholder: "+216 …" },
+    { name: "address", label: "Adresse", placeholder: "12 Avenue Habib Bourguiba, Tunis" },
+    { name: "subscriptionPlan", label: "Formule", type: "select", options: PLAN_OPTIONS },
   ] as const;
+
+  // Backend returns snake_case; the form expects camelCase initial values.
+  const toFormValues = (r: any) => ({
+    name: r?.name ?? "",
+    contactEmail: r?.contactEmail ?? r?.contact_email ?? "",
+    phone: r?.phone ?? "",
+    address: r?.address ?? "",
+    subscriptionPlan: r?.subscriptionPlan ?? r?.subscription_plan ?? "",
+  });
 
   return (
     <div>
@@ -42,17 +59,30 @@ function OrganizationsPage() {
       <DataList
         queryKey={["organizations"]}
         queryFn={() => OrganizationsAPI.list()}
-        searchKeys={["name", "slug", "country", "city"]}
-        searchPlaceholder="Rechercher nom, slug, pays…"
+        searchKeys={["name", "contact_email", "phone", "address"]}
+        searchPlaceholder="Rechercher nom, email, adresse…"
         emptyHint="Aucune organisation. Ajoutez la première école pour démarrer."
         emptyAction={<Button onClick={() => setCreateOpen(true)} size="sm"><Plus className="h-4 w-4" />Créer une organisation</Button>}
         columns={[
           { key: "name", header: "Nom", cell: (r) => <span className="font-medium text-foreground">{r.name || "—"}</span> },
-          { key: "slug", header: "Slug", cell: (r) => <span className="font-mono text-xs text-muted-foreground">{r.slug || "—"}</span> },
-          { key: "city", header: "Ville", cell: (r) => r.city || "—" },
-          { key: "country", header: "Pays", cell: (r) => r.country ? <Badge variant="outline">{r.country}</Badge> : "—" },
-          { key: "users", header: "Utilisateurs", cell: (r) => <span className="tabular-nums">{r.usersCount ?? r.users_count ?? "—"}</span> },
-          { key: "buses", header: "Bus", cell: (r) => <span className="tabular-nums">{r.busesCount ?? r.buses_count ?? "—"}</span> },
+          { key: "email", header: "Email", cell: (r) => <span className="text-muted-foreground">{r.contactEmail || r.contact_email || "—"}</span> },
+          { key: "phone", header: "Téléphone", cell: (r) => r.phone || "—" },
+          { key: "address", header: "Adresse", cell: (r) => <span className="text-muted-foreground">{r.address || "—"}</span> },
+          {
+            key: "plan",
+            header: "Formule",
+            cell: (r) => {
+              const plan = r.subscriptionPlan ?? r.subscription_plan;
+              const status = r.subscriptionStatus ?? r.subscription_status;
+              if (!plan && !status) return "—";
+              return (
+                <div className="flex flex-wrap gap-1">
+                  {plan ? <Badge variant="outline" className="capitalize">{plan}</Badge> : null}
+                  {status ? <Badge variant="secondary" className="capitalize">{status}</Badge> : null}
+                </div>
+              );
+            },
+          },
         ]}
         actions={(r) => (
           <>
@@ -71,14 +101,14 @@ function OrganizationsPage() {
         title="Nouvelle organisation"
         description="Créez un tenant isolé pour une école ou un opérateur."
         fields={fields as any}
-        onSubmit={async (v) => { await OrganizationsAPI.create(v); refresh(); }}
+        onSubmit={async (v) => { await OrganizationsAPI.create(v); toast.success("Organisation créée"); refresh(); }}
       />
       <EntityFormDialog
         open={!!editOpen} onOpenChange={(o) => !o && setEditOpen(null)}
         title="Modifier l'organisation"
         fields={fields as any}
-        initial={editOpen || undefined}
-        onSubmit={async (v) => { await OrganizationsAPI.update(editOpen.id, v); refresh(); }}
+        initial={editOpen ? toFormValues(editOpen) : undefined}
+        onSubmit={async (v) => { await OrganizationsAPI.update(editOpen.id, v); toast.success("Modifications enregistrées"); refresh(); }}
       />
       <ConfirmDialog
         open={!!delOpen} onOpenChange={(o) => !o && setDelOpen(null)}

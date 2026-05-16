@@ -379,8 +379,10 @@ export const SchoolsAPI = {
       id: o.id,
       name: o.name,
       address: o.address,
-      city: o.city,
-      childrenCount: o.childrenCount ?? o.children_count,
+      contactEmail: o.contactEmail ?? o.contact_email,
+      phone: o.phone,
+      subscriptionPlan: o.subscriptionPlan ?? o.subscription_plan,
+      subscriptionStatus: o.subscriptionStatus ?? o.subscription_status,
     }));
   },
 };
